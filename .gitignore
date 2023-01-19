@@ -1,0 +1,28 @@
+.project
+.settings/
+.prefs
+.pydevproject
+.idea/
+.idea
+.DS_Store
+.cache
+*.pyc
+*.html
+*.xlm
+.Rhistory
+Work/何盼/Data Store/2022/09-15/food product.dta
+Work/霍达/Data_Store/2022/10-18/carbon-monitor-cities-all-cities-FUA-v0325.csv
+Work/何盼/Data Store/2022/11-01/final.csv
+Work/宋晅任/Data_Store/2022/11-29/test_xy.cpg
+Work/宋晅任/Data_Store/2022/11-29/test_xy.dbf
+Work/宋晅任/Data_Store/2022/11-29/test_xy.prj
+Work/宋晅任/Data_Store/2022/11-29/test_xy.sbn
+Work/宋晅任/Data_Store/2022/11-29/test_xy.sbx
+Work/宋晅任/Data_Store/2022/11-29/test_xy.shp
+Work/宋晅任/Data_Store/2022/11-29/test_xy.shp.xml
+Work/宋晅任/Data_Store/2022/11-29/test_xy.shx
+Work/宋晅任/Data_Store/2022/11-29/Export_Output.shp.KOW.15696.26376.sr.lock
+Work/宋晅任/Data_Store/2022/11-29/Export_Output.shp
+Work/宋晅任/Data_Store/2022/11-29/Export_Output.prj
+Work/宋晅任/Data_Store/2022/11-29/Export_Output.dbf
+Work/宋晅任/Data_Store/2022/11-29/Export_Output.cpg
