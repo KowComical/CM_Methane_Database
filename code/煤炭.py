@@ -201,7 +201,7 @@ def process(df_efp, df_pp, num, df_province):
     # 列转行
     enmpt = pd.pivot_table(enmpt, index='date', values='enmpt', columns='province').reset_index()
 
-    enmpt.to_csv(os.path.join(raw_path, '煤炭', 'result_%s.csv' % num))
+    enmpt.to_csv(os.path.join(raw_path, '煤炭', 'result_%s.csv' % num), index=False, encoding='utf_8_sig')
 
 
 # 煤炭
@@ -290,14 +290,14 @@ def coal():
         # 行转列
         temp = temp.set_index(['date']).stack().reset_index().rename(columns={'level_1': 'province', 0: 'data'})
         temp['data'] = temp['data'] / 1000000
-        temp['排放因子序号'] = i
+        temp['sector'] = i
         df_coal = pd.concat([df_coal, temp]).reset_index(drop=True)
     province_list = df_coal['province'].unique()
 
     df_final = pd.DataFrame()
     for i in range(1, 7):
         for p in province_list:
-            temp = df_coal[(df_coal['province'] == p) & (df_coal['排放因子序号'] == i)].reset_index(drop=True)
+            temp = df_coal[(df_coal['province'] == p) & (df_coal['sector'] == i)].reset_index(drop=True)
             df_fix = temp[temp['date'] >= '2022-01-01'].reset_index(drop=True)
             df_rest = temp[temp['date'] < '2022-01-01'].reset_index(drop=True)
             df_fix = df_fix.sort_values('date').reset_index(drop=True)
@@ -305,11 +305,18 @@ def coal():
             df_result = pd.concat([df_fix, df_rest]).reset_index(drop=True)
             df_final = pd.concat([df_final, df_result]).reset_index(drop=True)
 
+    # 整理并输出
+    df_final['department'] = 'Coal mining'
+    df_final = pd.merge(df_final, df_c, left_on='province', right_on='中文')[
+        ['date', 'data', '拼音', 'sector', 'department']].rename(columns={'拼音': 'province', 'data': 'value'})
+    # 分三种情况
+    # df_final['type'] = '不带回收'
+    # df_final.to_csv(os.path.join(out_path, '煤炭', '煤炭_不带回收.csv'), index=False, encoding='utf_8_sig')
     # # 乘以90%
-    # df_final['data'] = df_final['data']*0.9
-    # df_final.to_csv(os.path.join(out_path,'煤炭','煤炭_带回收_90%.csv'),index=False,encoding='utf_8_sig')
-    # df_final.to_csv(os.path.join(out_path,'煤炭','煤炭_不带回收.csv'),index=False,encoding='utf_8_sig')
-
+    # df_final['value'] = df_final['value'] * 0.9
+    # df_final['type'] = '带回收_90%'
+    # df_final.to_csv(os.path.join(out_path, '煤炭', '煤炭_带回收_90%.csv'), index=False, encoding='utf_8_sig')
+    df_final['type'] = '带回收'
     df_final.to_csv(os.path.join(out_path, '煤炭', '煤炭_带回收.csv'), index=False, encoding='utf_8_sig')
 
 

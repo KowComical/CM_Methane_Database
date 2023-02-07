@@ -19,7 +19,8 @@ def agricultural():
     # # ton CH4
     df_all['data'] = df_all['data'] * 0.25 * 0.1  # CH4/COD
     df_all = pd.pivot_table(df_all, index='date', values='data', columns='province').reset_index()
-    df_all = df_all.set_index(['date']).stack().reset_index().rename(columns={'level_1': 'province', 0: 'a'}).rename(
+    df_all = df_all.set_index(['date']).stack().reset_index().rename(
+        columns={'level_1': 'province', 0: 'agricultural_wastewater'}).rename(
         columns={'date': 'year'})
     df_a = df_all.copy()
     df_a = df_a.groupby(['year', 'province']).mean().reset_index()
@@ -104,8 +105,8 @@ def household():
     df_life_1 = pd.read_csv(os.path.join(data_path, '生活废水的集中处理方式的甲烷排放估计方法_t.csv'))
     df_life_2 = pd.read_csv(os.path.join(data_path, '生活废水的其他处理方式的甲烷排放估计方法_t.csv'))
     df_life = pd.merge(df_life_1, df_life_2)
-    df_life['life'] = df_life['Edomc'] + df_life['Edomdf']
-    df_life = df_life[['date', 'province', 'life']].rename(columns={'date': 'year'})
+    df_life['household_wastewater'] = df_life['Edomc'] + df_life['Edomdf']
+    df_life = df_life[['date', 'province', 'household_wastewater']].rename(columns={'date': 'year'})
     return df_life
 
 
@@ -123,12 +124,13 @@ def industry():
     RCOD['RCOD'] = RCOD['RCOD'] * 0.25 * 0.4674
 
     df_industry = pd.merge(RCOD, DCOD)
-    # df_industry['industry'] = df_industry[['RCOD','DCOD']].sum(axis=1)  # 先不算直接排放
-    df_industry['industry'] = df_industry['RCOD']
-    df_industry = df_industry[['date', 'province', 'industry']]
-    df_year = df_industry.groupby(['date']).sum(numeric_only=True).reset_index().rename(columns={'industry': 'sum'})
+    # df_industry['industrial_wastewater'] = df_industry[['RCOD','DCOD']].sum(axis=1)  # 先不算直接排放
+    df_industry['industrial_wastewater'] = df_industry['RCOD']
+    df_industry = df_industry[['date', 'province', 'industrial_wastewater']]
+    df_year = df_industry.groupby(['date']).sum(numeric_only=True).reset_index().rename(
+        columns={'industrial_wastewater': 'sum'})
     df_ratio = pd.merge(df_industry, df_year)
-    df_ratio['ratio_industry'] = df_ratio['industry'] / df_ratio['sum']
+    df_ratio['ratio_industry'] = df_ratio['industrial_wastewater'] / df_ratio['sum']
     df_ratio_industry = df_ratio[['province', 'date', 'ratio_industry']]
 
     # 月度工业废水甲烷排放估计
@@ -151,14 +153,14 @@ def industry():
     df_industry = pd.merge(df_industry, df_ratio)
     # 填充占比
     for d in df_industry.columns[3:]:
-        df_industry[d] = df_industry[d] * df_industry['industry']
+        df_industry[d] = df_industry[d] * df_industry['industrial_wastewater']
     df_industry['sum'] = df_industry.iloc[:, 3:].sum(axis=1)
     df_sum = df_industry[['date', 'province', 'sum']]
     df_sum.to_csv(os.path.join(data_path, '工业废水省级年度排放.csv'), index=False, encoding='utf_8_sig')
     # 继续整理
-    df_industry = df_industry.drop(columns=['industry', 'sum'])
+    df_industry = df_industry.drop(columns=['industrial_wastewater', 'sum'])
     df_industry = df_industry.set_index(['date', 'province']).stack().reset_index().rename(
-        columns={'level_2': 'type', 0: 'industry'})
+        columns={'level_2': 'type', 0: 'industrial_wastewater'})
     df_data = pd.read_csv(os.path.join(data_path, 'industry_raw.csv')).rename(
         columns={'type': '指标', 'date': '时间', 'data': '值', 'name': '省市名称'})
     # 读取工作日
@@ -236,26 +238,28 @@ def industry():
         columns={'level_3': 'type', 0: 'ratio'})
 
     df_final = pd.merge(df_ratio, df_industry)
-    df_final['final'] = df_final['ratio'] * df_final['industry']
+    df_final['final'] = df_final['ratio'] * df_final['industrial_wastewater']
     df_final = df_final[['时间', 'province', 'type', 'final']]
 
     df_final = df_final.groupby(['时间', 'province']).sum(numeric_only=True).reset_index()
     df_final['year'] = df_final['时间'].dt.year
     df_in = df_final.copy()
-    df_in = df_in.groupby(['时间', 'province']).mean().reset_index().rename(columns={'final': 'industry'})
+    df_in = df_in.groupby(['时间', 'province']).mean().reset_index().rename(columns={'final': 'industrial_wastewater'})
     # 合并所有废水
     df_a = agricultural()
     df_life = household()
     df_sum = pd.merge(df_in, df_life)
-    df_sum['life'] = df_sum['life'] / 12
+    df_sum['household_wastewater'] = df_sum['household_wastewater'] / 12
     df_sum = pd.merge(df_sum, df_a)
-    df_sum['a'] = df_sum['a'] / 12
-    df_sum['all'] = df_sum['life'] + df_sum['industry'] + df_sum['a']
-    df_sum = df_sum[['时间', 'province', 'life', 'a', 'industry']].rename(columns={'时间': 'date'})
+    df_sum['agricultural_wastewater'] = df_sum['agricultural_wastewater'] / 12
+    df_sum['all'] = df_sum['household_wastewater'] + df_sum['industrial_wastewater'] + df_sum['agricultural_wastewater']
+    df_sum = df_sum[['时间', 'province', 'household_wastewater', 'agricultural_wastewater', 'industrial_wastewater']].rename(columns={'时间': 'date'})
     # 行转列
     df_sum = df_sum.set_index(['date', 'province']).stack().reset_index().rename(
         columns={'level_2': 'sector', 0: 'value'})
     df_sum['value'] = df_sum['value'] / 1000  # 统一单位
+    # 输出
+    df_sum['department'] = 'Wastewater'
     df_sum.to_csv(os.path.join(out_path, '废水', '废水.csv'), index=False, encoding='utf_8_sig')
 
 
