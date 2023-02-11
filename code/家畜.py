@@ -7,8 +7,7 @@ global_path, raw_path, tools_path, out_path, df_c, end_year, start_year = af.bas
 
 
 def main():
-    fenbian()
-    changdao()
+    sum()
 
 
 def fenbian():
@@ -80,7 +79,8 @@ def fenbian():
     df['sector'] = 'Manure management'
     df['department'] = 'Livestock'
     df = df.sort_values('date')
-    df.to_csv(os.path.join(out_path, '粪便&肠道', '粪便.csv'), index=False, encoding='utf_8_sig')
+    return df
+    # df.to_csv(os.path.join(out_path, '粪便&肠道', '粪便.csv'), index=False, encoding='utf_8_sig')
 
 
 def changdao():
@@ -139,7 +139,17 @@ def changdao():
     df_new['department'] = 'Livestock'
     df_new['date'] = pd.to_datetime(pd.to_datetime(df_new['date']).dt.strftime('%Y-%m'))
     df_new = df_new.sort_values('date')
-    df_new.to_csv(os.path.join(out_path, '粪便&肠道', '肠道.csv'), index=False, encoding='utf_8_sig')
+    # df_new.to_csv(os.path.join(out_path, '粪便&肠道', '肠道.csv'), index=False, encoding='utf_8_sig')
+    return df_new
+
+# 合并
+def sum():
+    df_fenbian = fenbian()
+    df_changdao = changdao()
+    df = pd.concat([df_fenbian, df_changdao]).reset_index(drop=True)
+    df.to_csv(os.path.join(out_path, '粪便&肠道', '家畜.csv'), index=False, encoding='utf_8_sig')
+
+
 
 
 if __name__ == '__main__':

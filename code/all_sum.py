@@ -18,7 +18,6 @@ def all_sum():
             df_result = pd.concat([df_result, temp]).reset_index(drop=True)
 
     # 全部门
-    # df_result['date'] = pd.to_datetime(pd.to_datetime(df_result['date']).dt.strftime('%Y-%m'))
     df_result = df_result[df_result['date'] >= '%s-01-01' % start_year].reset_index(drop=True)
     df_result.to_csv(os.path.join(out_path, '全部门', '全部门.csv'), index=False, encoding='utf_8_sig')
     # 分部门
