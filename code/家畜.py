@@ -7,36 +7,24 @@ global_path, raw_path, tools_path, out_path, df_c, end_year, start_year = af.bas
 
 
 def main():
-    sum()
+    sum_livestock()
 
 
 def fenbian():
     # 粪便
-    fenbian_path = os.path.join(raw_path, '粪便&肠道', '粪便')
+    fenbian_path = os.path.join(raw_path, '家畜', '粪便')
     file_name = af.search_file(fenbian_path)
 
     year = re.compile(r'- (?P<name>.*?)[.]')
     # 数据清洗
-    p = re.compile(r'[\u4e00-\u9fa5]')
-
     df = pd.DataFrame()
     for f in file_name:
-        # 所有sheet_name
-        sheet_list = pd.ExcelFile(f).sheet_names
-        for s in sheet_list:
+        for s in pd.read_excel(f, sheet_name=None):
             temp = pd.read_excel(f, sheet_name=s)
             # 找到各动物的行
             first_hang = temp[temp['Unnamed: 0'] == 'CH4 Density'].index.tolist()[0]
-            new_data = []
-            mydata = temp.iloc[first_hang:]['Unnamed: 0'].dropna().tolist()
-            for i in range(len(mydata)):
-                data = re.findall(p, mydata[i])
-                result = ''.join(data)
-                new_data.append(result)
-            type_list = []
-            for i in range(len(new_data)):
-                if new_data[i] != '':
-                    type_list.append(new_data[i])
+            mydata = temp.iloc[first_hang:]['Unnamed: 0'].dropna().str.findall('[\u4e00-\u9fa5]').str.join('')
+            type_list = mydata[mydata != ''].unique().tolist()
             for t in type_list:
                 if t == '驴骡':
                     t = '驴/骡'
@@ -66,11 +54,11 @@ def fenbian():
     df['月份.1'] = df['月份.1'].astype(int)
     df['date'] = pd.to_datetime(df['year'] + df['月份.1'].astype(str), format='%Y%m')
     df = df.drop(columns=['月份.1', 'year'])
-    df['CH4 (kg)'] = df['CH4 (kg)'] / 1000 / 1000
     # 列转行
-    df = df[df['date'] >= '%s-01-01' % start_year].reset_index(drop=True)
+    df = df[df['date'] >= f'{start_year}-01-01'].reset_index(drop=True)
     df['province'] = df['province'].replace('内蒙', '内蒙古')
     df['value'] = df[['CH4 (kg)', 'CH4 (kg) 驴']].sum(axis=1)
+    df['value'] = df['value'] / 1000 / 1000
     df = df[['date', 'province', 'type', 'value']]
     # 这里要加个改名
     df = pd.merge(df, df_c, left_on='province', right_on='中文')[['date', 'value', '拼音', 'type']].rename(
@@ -80,18 +68,16 @@ def fenbian():
     df['department'] = 'Livestock'
     df = df.sort_values('date')
     return df
-    # df.to_csv(os.path.join(out_path, '粪便&肠道', '粪便.csv'), index=False, encoding='utf_8_sig')
 
 
 def changdao():
     # 肠道
-    file_path = os.path.join(raw_path, '粪便&肠道', '肠道')
+    file_path = os.path.join(raw_path, '家畜', '肠道')
 
-    file = os.path.join(file_path, '肠道发酵 (中国)-20230105.xlsx')
+    file = os.path.join(file_path, '肠道发酵 (中国).xlsx')
 
-    sheet_list = pd.ExcelFile(file).sheet_names
     df = pd.DataFrame()
-    for s in sheet_list:
+    for s in pd.read_excel(file, sheet_name=None):
         r_temp = pd.read_excel(file, sheet_name=s)
         province_list = r_temp.columns[3:-2].tolist()  # 省份名
         # 找到需要数据所在的行
@@ -134,22 +120,20 @@ def changdao():
         '回族', '').str.replace('维吾尔', '').str.replace('壮族', '')
     df_new = pd.merge(df_new, df_c, left_on='province', right_on='中文')[['date', 'CH4', '拼音']].rename(
         columns={'拼音': 'province', 'CH4': 'value'})
-    df_new = df_new[df_new['date'] >= '%s-01-01' % start_year].reset_index(drop=True)
+    df_new = df_new[df_new['date'] >= f'{start_year}-01-01'].reset_index(drop=True)
     df_new['sector'] = 'Enteric fermentation'
     df_new['department'] = 'Livestock'
     df_new['date'] = pd.to_datetime(pd.to_datetime(df_new['date']).dt.strftime('%Y-%m'))
     df_new = df_new.sort_values('date')
-    # df_new.to_csv(os.path.join(out_path, '粪便&肠道', '肠道.csv'), index=False, encoding='utf_8_sig')
     return df_new
 
+
 # 合并
-def sum():
+def sum_livestock():
     df_fenbian = fenbian()
     df_changdao = changdao()
     df = pd.concat([df_fenbian, df_changdao]).reset_index(drop=True)
-    df.to_csv(os.path.join(out_path, '粪便&肠道', '家畜.csv'), index=False, encoding='utf_8_sig')
-
-
+    df.to_csv(os.path.join(out_path, '家畜', '家畜.csv'), index=False, encoding='utf_8_sig')
 
 
 if __name__ == '__main__':

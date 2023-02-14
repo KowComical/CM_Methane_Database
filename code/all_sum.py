@@ -10,15 +10,15 @@ def main():
 
 
 def all_sum():
-    all_file = af.search_file(out_path)
+    all_files = af.search_file(out_path)
     df_result = pd.DataFrame()
-    for a in all_file:
-        if '部门' not in a:
-            temp = pd.read_csv(a)
+    for file in all_files:
+        if '部门' not in file:
+            temp = pd.read_csv(file)
             df_result = pd.concat([df_result, temp]).reset_index(drop=True)
 
     # 全部门
-    df_result = df_result[df_result['date'] >= '%s-01-01' % start_year].reset_index(drop=True)
+    df_result = df_result[df_result['date'] >= f"{start_year}-01-01"].reset_index(drop=True)
     df_result.to_csv(os.path.join(out_path, '全部门', '全部门.csv'), index=False, encoding='utf_8_sig')
     # 分部门
     bumen = df_result['department'].unique()
