@@ -6,7 +6,16 @@ global_path, raw_path, tools_path, out_path, df_c, end_year, start_year = af.bas
 
 
 def main():
-    industry()
+    # COD的取值范围为0.458~0.5
+    COD_value = [0.458, 0.5]
+    # BOD的取值范围为0.456~0.587
+    BOD_value = [0.456, 0.587]
+    # MCFc的取值范围为0.1~0.3
+    MCFc_value = [0.1, 0.3]
+    for cv in COD_value:
+        for bv in BOD_value:
+            for mv in MCFc_value:
+                sum_all(cv, bv, mv)
 
 
 def agricultural():
@@ -27,7 +36,7 @@ def agricultural():
     return df_a
 
 
-def household():
+def household(BOD_value, MCFc_value):
     # 生活废水
     data_path = os.path.join(os.path.join(raw_path, '废水', '生活废水'))
     df_ru = pd.read_excel(os.path.join(data_path, '城镇化率.xlsx'))
@@ -45,7 +54,6 @@ def household():
     # 读取ratio
     ratio = pd.read_excel(os.path.join(data_path, 'ratio.xlsx'))
     o_ratio = ratio.copy()
-    # ratio['BOD/COD'] = ratio['BOD/COD']*0.587*0.1
 
     # 读取污水处理率
     Rdom = pd.read_excel(os.path.join(data_path, '城市污水处理率.xlsx'))
@@ -55,7 +63,7 @@ def household():
     df_result = pd.merge(df_result, Rdom)
     df_result = pd.merge(df_result, ratio)
     # 直接废水排放
-    df_result['EFdomc'] = 0.587 * 0.1
+    df_result['EFdomc'] = BOD_value * 0.1
     df_result['Edomd'] = (df_result['DCODdomr'] + df_result['DCODdomu'] * (1 - df_result['Rdom'])) * df_result[
         'EFdomc'] * df_result['BOD/COD']
     df_result.to_csv(os.path.join(data_path, '直接排放废水的甲烷排放估计_t.csv'), index=False, encoding='utf_8_sig')
@@ -76,7 +84,7 @@ def household():
     df_final = pd.merge(df_final, Rdomc)
     df_final = pd.merge(df_final, o_ratio)
     df_final['RCODdomu'] = df_final['PCODdomu'] - df_final['DCODdomu'] * df_final['Rdomc']  # 前后单位差很多 可能有问题
-    df_final['Edomc'] = df_final['RCODdomu'] * 0.165 * 0.587 * df_final['BOD/COD']
+    df_final['Edomc'] = df_final['RCODdomu'] * MCFc_value * 0.587 * df_final['BOD/COD']
     df_final = df_final[['date', 'province', 'Edomc']]
     df_final.to_csv(os.path.join(data_path, '生活废水的集中处理方式的甲烷排放估计方法_t.csv'), index=False,
                     encoding='utf_8_sig')
@@ -110,7 +118,7 @@ def household():
     return df_life
 
 
-def industry():
+def industry(COD_value):
     # 工业废水
     data_path = os.path.join(os.path.join(raw_path, '废水', '工业废水'))
     DCOD = pd.read_excel(os.path.join(data_path, 'DCOD.xlsx')).rename(columns={'year': 'date'})
@@ -121,7 +129,7 @@ def industry():
     RCOD = pd.read_excel(os.path.join(data_path, 'RCOD.xlsx'))
     RCOD = RCOD.set_index(['province']).stack().reset_index().rename(columns={'level_1': 'date', 0: 'data'})
     RCOD = af.predict_yearly(RCOD).rename(columns={'data': 'RCOD'})
-    RCOD['RCOD'] = RCOD['RCOD'] * 0.25 * 0.4674
+    RCOD['RCOD'] = RCOD['RCOD'] * 0.25 * COD_value
 
     df_industry = pd.merge(RCOD, DCOD)
     # df_industry['industrial_wastewater'] = df_industry[['RCOD','DCOD']].sum(axis=1)  # 先不算直接排放
@@ -203,8 +211,7 @@ def industry():
 
     df_ratio = pd.merge(df_ratio, df_city, left_on='地区', right_on='全称')[['year', '时间', 'ratio', '拼音', '类型']]
     df_ratio['拼音'] = df_ratio['拼音'].replace('InnerMongolia', 'Inner Mongolia')
-    df_ratio['类型'] = df_ratio['类型'].replace('原煤', '煤炭开采和洗选业').replace('乙烯',
-                                                                                    '化学原料及化学制品制造业').replace(
+    df_ratio['类型'] = df_ratio['类型'].replace('原煤', '煤炭开采和洗选业').replace('乙烯', '化学原料及化学制品制造业').replace(
         '化学纤维', '化学纤维制造业').replace('成品糖', '农副食品加工业')
     df_ratio['类型'] = df_ratio['类型'].replace('机制纸及纸板', '造纸及纸制品业').replace('纱和布', '纺织业').replace(
         '饮料', '酒、饮料和精制茶制造业')
@@ -245,22 +252,31 @@ def industry():
     df_final['year'] = df_final['时间'].dt.year
     df_in = df_final.copy()
     df_in = df_in.groupby(['时间', 'province']).mean().reset_index().rename(columns={'final': 'industrial_wastewater'})
+    return df_in
+
+
+def sum_all(COD_value, BOD_value, MCFc_value):
     # 合并所有废水
+    df_in = industry(COD_value)
     df_a = agricultural()
-    df_life = household()
+    df_life = household(BOD_value, MCFc_value)
     df_sum = pd.merge(df_in, df_life)
     df_sum['household_wastewater'] = df_sum['household_wastewater'] / 12
     df_sum = pd.merge(df_sum, df_a)
     df_sum['agricultural_wastewater'] = df_sum['agricultural_wastewater'] / 12
     df_sum['all'] = df_sum['household_wastewater'] + df_sum['industrial_wastewater'] + df_sum['agricultural_wastewater']
-    df_sum = df_sum[['时间', 'province', 'household_wastewater', 'agricultural_wastewater', 'industrial_wastewater']].rename(columns={'时间': 'date'})
+    df_sum = df_sum[
+        ['时间', 'province', 'household_wastewater', 'agricultural_wastewater', 'industrial_wastewater']].rename(
+        columns={'时间': 'date'})
     # 行转列
     df_sum = df_sum.set_index(['date', 'province']).stack().reset_index().rename(
         columns={'level_2': 'sector', 0: 'value'})
     df_sum['value'] = df_sum['value'] / 1000  # 统一单位
     # 输出
     df_sum['department'] = 'Wastewater'
-    df_sum.to_csv(os.path.join(out_path, '废水', '废水.csv'), index=False, encoding='utf_8_sig')
+    df_sum.to_csv(os.path.join(out_path, '废水', f'废水_with_COD-{COD_value}_BOD-{BOD_value}_MCFc-{MCFc_value}.csv'),
+                  index=False,
+                  encoding='utf_8_sig')
 
 
 if __name__ == '__main__':
